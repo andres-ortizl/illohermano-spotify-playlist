@@ -1,0 +1,21 @@
+on:
+  push:
+    tags:
+      - 0.*
+      - 1.*
+jobs:
+  build:
+    if: github.event.base_ref == 'refs/heads/master'
+    runs-on: ubuntu-16.04
+    strategy:
+      matrix:
+        go: [ '1.16' ]
+    name: Go ${{ matrix.go }} sample
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go }}
+      - run: build cmd/playlist/main.go
+      - run: ./main
