@@ -17,5 +17,4 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: ${{ matrix.go }}
-      - run: build cmd/playlist/main.go
-      - run: ./main
+      - run: go build cmd/playlist/main.go
