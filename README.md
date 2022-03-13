@@ -2,7 +2,7 @@
 
 # Instructions
 
-You'll need to set up the following env vars before running the app
+You'll need to set up the following env vars in your .venv file before running the app
 
 - SPOTIFY_CLIENT_SECRET : Your spotify app client secret, you can set up this
   here https://developer.spotify.com/dashboard/applications
