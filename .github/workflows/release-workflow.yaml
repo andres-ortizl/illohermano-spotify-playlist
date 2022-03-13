@@ -6,10 +6,10 @@ on:
 jobs:
   build:
     if: github.event.base_ref == 'refs/heads/master'
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [ '1.16' ]
+        go: [ '1.17' ]
     name: Go ${{ matrix.go }} sample
     steps:
       - uses: actions/checkout@v2
@@ -17,5 +17,4 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: ${{ matrix.go }}
-      - run: build cmd/playlist/main.go
-      - run: ./main
+      - run: go build cmd/playlist/main.go

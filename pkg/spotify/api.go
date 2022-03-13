@@ -9,6 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	openGo "github.com/skratchdot/open-golang/open"
 	"golang.org/x/oauth2"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,6 +22,7 @@ const (
 	partialAddItemsUri = "/tracks"
 	partialAddCoverUri = "/images"
 	createUri          = "https://api.spotify.com/v1/users/%s/playlists"
+	playListUri        = "https://api.spotify.com/v1/playlists/%s"
 	authorizeUri       = "https://accounts.spotify.com/authorize"
 	tokenUri           = "https://accounts.spotify.com/api/token"
 	redirectUri        = "http://localhost:8080/callback"
@@ -41,6 +44,17 @@ type Client struct {
 	code         string
 	httpClient   *http.Client
 	userId       string
+}
+
+type RestoredPlayList struct {
+	Name   string `json:"name"`
+	Tracks struct {
+		Items []struct {
+			Track struct {
+				URI string `json:"uri"`
+			} `json:"track"`
+		} `json:"items"`
+	} `json:"tracks"`
 }
 type createPlaylistParams struct {
 	Name   string `json:"name"`
@@ -102,7 +116,7 @@ func (spotify *Client) AddCoverToPlaylist(uri *url.URL, imagePath string) {
 	req.Header.Add("Content-Type", "image/jpeg")
 	resp, err := spotify.httpClient.Do(req)
 	check(err, "")
-	log.Info("Items added with status: ", resp.StatusCode)
+	log.Info("Cover added with status: ", resp.StatusCode)
 }
 
 func (spotify *Client) CreatePlaylist(name string) (*url.URL, error) {
@@ -111,11 +125,11 @@ func (spotify *Client) CreatePlaylist(name string) (*url.URL, error) {
 		Public: true,
 	}
 	jsonValue, _ := json.Marshal(values)
-	fmt.Println(jsonValue)
 	resp, err := spotify.httpClient.Post(
 		fmt.Sprintf(createUri, spotify.userId),
 		"application/json",
 		bytes.NewReader(jsonValue))
+	log.Info("Response status creating new playlist ", resp.Status)
 	check(err, "err")
 	location, err := resp.Location()
 	check(err, "err")
@@ -145,6 +159,46 @@ func (spotify *Client) getToken() (*oauth2.Token, error) {
 	exchange, err := spotifyConfig.Exchange(context.Background(), spotify.code)
 	check(err, "")
 	return exchange, err
+}
+
+func (spotify *Client) GetPlaylist(playListId string) (string, error) {
+	resp, err := spotify.httpClient.Get(
+		fmt.Sprintf(playListUri, playListId))
+	check(err, "err")
+	log.Info("Request status pulling playlist information: ", resp.Status)
+	body, _ := io.ReadAll(resp.Body)
+	return string(body), err
+}
+
+func (spotify *Client) RestorePlaylist(playListFile string) {
+	var playList RestoredPlayList
+	var uriList []string
+	jsonFile, err := ioutil.ReadFile(playListFile)
+	// if we os.Open returns an error then handle it
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("Successfully Opened", playListFile)
+	// defer the closing of our jsonFile so that we can parse it later on
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(jsonFile, &playList)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	playlist, err := spotify.CreatePlaylist(playList.Name)
+	if err != nil {
+		return
+	}
+
+	for i := 0; i < len(playList.Tracks.Items); i++ {
+		uriList = append(uriList, playList.Tracks.Items[i].Track.URI)
+	}
+	spotify.AddItemsToPlaylist(playlist, uriList)
+
 }
 
 func openURL(url string) error {
